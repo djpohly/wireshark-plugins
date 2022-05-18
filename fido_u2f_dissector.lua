@@ -1,7 +1,6 @@
 -- started based on https://gist.github.com/z4yx/218116240e2759759b239d16fed787ca
 
 cbor = Dissector.get("cbor")
-iso7816 = Dissector.get("iso7816")
 
 ctaphid_proto = Proto("CTAPHID","FIDO Client to Authenticator Protocol over USB HID")
 ctaphidfield_cid  = ProtoField.uint32("ctaphid.cid", "Channel ID", base.HEX)
@@ -41,14 +40,6 @@ field_usb_endpoint = Field.new("usb.endpoint_address")
 field_usb_endpointdir = Field.new("usb.endpoint_address.direction")
 field_usb_endpointnum = Field.new("usb.endpoint_address.number")
 field_usb_datalen = Field.new("usb.data_len")
-field_iso7816_ins = Field.new("iso7816.apdu.ins")
-field_iso7816_p1 = Field.new("iso7816.apdu.p1")
-field_iso7816_p2 = Field.new("iso7816.apdu.p2")
-field_iso7816_sw1 = Field.new("iso7816.apdu.sw1")
-field_iso7816_sw2 = Field.new("iso7816.apdu.sw2")
-field_iso7816_lc = Field.new("iso7816.apdu.lc")
-field_iso7816_le = Field.new("iso7816.apdu.le")
-field_iso7816_data = Field.new("iso7816.application_data")
 
 CTAPHID_COMMANDS = {
 	CTAPHID_MSG          = 0x03,
@@ -199,10 +190,6 @@ end
 function dissect_ctaphid_payload(cmd, buffer, pinfo, tree)
 	if buffer:len() == 0 then return end -- && usb.function == 0x0008 && select correct endpoint/etc.
 	if cmd == CTAPHID_COMMANDS.CTAPHID_MSG then
-		local isotree = tree:add("iso")
-		iso7816:call(buffer, pinfo, isotree)
-		isotree.hidden = true
-		-- print(field_iso7816_ins().value, field_iso7816_p1().value, field_iso7816_p2().value)
 		Dissector.get("u2f"):call(buffer, pinfo, tree)
 	elseif cmd == CTAPHID_COMMANDS.CTAPHID_CBOR then
 		local subtree = tree:add(buffer(0),"FIDO2 Payload")
