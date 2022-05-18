@@ -8,7 +8,8 @@ ctaphidfield_cmd  = ProtoField.uint8("ctaphid.cmd", "Command", base.HEX)
 ctaphidfield_bcnt = ProtoField.uint16("ctaphid.bcnt", "Payload Length", base.DEC_HEX)
 ctaphidfield_seq  = ProtoField.uint8("ctaphid.seq", "Packet Sequence", base.HEX)
 ctaphidfield_data = ProtoField.bytes("ctaphid.data", "Data")
-ctaphid_proto.fields = { ctaphidfield_cid, ctaphidfield_cmd, ctaphidfield_bcnt, ctaphidfield_seq, ctaphidfield_data }
+ctaphidfield_respframe = ProtoField.framenum("ctaphid.req_frame", "CTAP request frame", base.NONE, frametype.REQUEST)
+ctaphid_proto.fields = { ctaphidfield_cid, ctaphidfield_cmd, ctaphidfield_bcnt, ctaphidfield_seq, ctaphidfield_data, ctaphidfield_respframe }
 
 u2f_proto = Proto("u2f","FIDO CTAP1/U2F Protocol")
 u2ffield_cla = ProtoField.uint8("u2f.request.cla", "Class", base.HEX)
@@ -187,15 +188,20 @@ function dissect_ctaphid_payload(cmd, buffer, pinfo, tree)
 	if cmd == CTAPHID_COMMANDS.CTAPHID_MSG then
 		Dissector.get("u2f"):call(buffer, pinfo, tree)
 	elseif cmd == CTAPHID_COMMANDS.CTAPHID_CBOR then
-		local subtree = tree:add(buffer(0),"FIDO2 Payload")
+		local cstate = packet_state[pinfo.number].cstate
 		local ctap_cmd = buffer(0,1):uint()
-			local text = nil
-			if is_request then
-				text = CTAP_COMMAND_CODE[ctap_cmd]
-			else
-				text = CTAP_RESPONSE_CODE[ctap_cmd]
-			end
+		local text = nil
+		if is_request then
+			text = CTAP_COMMAND_CODE[ctap_cmd]
+			ss_add(cstate.requests, pinfo.number)
+		else
+			local reqframe = cstate.requests[ss_index(cstate.requests, pinfo.number) - 1]
+			assert(reqframe ~= nil)
+			tree:add(ctaphidfield_respframe, reqframe, "[CTAP request frame]")
+			text = CTAP_RESPONSE_CODE[ctap_cmd]
+		end
 		pinfo.cols.protocol = "CTAP " .. text
+		local subtree = tree:add(buffer(0),"FIDO2 Payload")
 		subtree:add(buffer(0,1),string.format('CTAP CMD/Status: %s (0x%02x)', text, ctap_cmd))
 		if buffer(1):len() > 0 then
 		    cbor:call(buffer(1):tvb(), pinfo, subtree)
