@@ -257,12 +257,7 @@ function channel_state_key(channel_id)
 	return Struct.tohex(key)
 end
 
-function conversation_key(channel_id)
-	local key = Struct.pack(">I2I2I1", field_usb_bus().value, field_usb_device().value, field_usb_endpointnum().value) .. channel_id:raw()
-	return Struct.tohex(key)
-end
-
-packet_state = {} -- { packet_number => { cmd = uint, buffer = bytearray, complete = bool, u2fcmd = uint, cskey = string } }
+packet_state = {} -- { packet_number => { cmd = uint, buffer = bytearray, complete = bool, u2fcmd = uint, cstate = channel_state } }
 channel_state = {} -- { channel_state_key => { cmd = uint, payload_length = uint, buffer = bytearray, requests = ss } }
 
 function dump(o)
@@ -284,7 +279,7 @@ function u2f_proto.dissector(buffer,pinfo,tree)
 	local subtree = tree:add(ctaphid_proto,buffer(),"CTAP1/U2F")
 	local is_request = (field_usb_endpointdir().value == 0)
 	local pstate = packet_state[pinfo.number]
-	local cstate = channel_state[pstate.cskey]
+	local cstate = pstate.cstate
 	if is_request then -- this is a request
 		local u2f_command = buffer(1,1):uint()
 		subtree:append_text(" Request")
@@ -401,7 +396,7 @@ function ctaphid_proto.dissector(buffer,pinfo,tree)
 	local pstate = packet_state[pinfo.number]
 	if pstate == nil then
 		pstate = {}
-		pstate.cskey = cskey
+		pstate.cstate = cstate
 		if cstate.buffer == nil then
 			assert(is_init_packet)
 			cstate.buffer = ByteArray.new()
