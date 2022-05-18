@@ -183,6 +183,7 @@ end
 
 function dissect_ctaphid_payload(cmd, buffer, pinfo, tree)
 	if buffer:len() == 0 then return end -- && usb.function == 0x0008 && select correct endpoint/etc.
+	local is_request = (field_usb_endpointdir().value == 0)
 	if cmd == CTAPHID_COMMANDS.CTAPHID_MSG then
 		Dissector.get("u2f"):call(buffer, pinfo, tree)
 	elseif cmd == CTAPHID_COMMANDS.CTAPHID_CBOR then
