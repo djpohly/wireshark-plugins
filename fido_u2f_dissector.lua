@@ -149,28 +149,22 @@ CTAP_RESPONSE_CODE = {
 
 -- Sorted set
 
--- Returns an index at which value could be inserted and the list remain sorted.
--- Iff the list contains value, then it occurs (at least) at the returned index.
--- function ss_index_r(ss, value, start, fin)
--- 	-- Base case (zero length)
--- 	if start > fin then return start end
--- 	local mid = math.floor((start + fin) / 2)
--- 	if value <= ss[mid] then
--- 		print("left")
--- 		return ss_index_r(ss, value, start, mid)
--- 	else -- value > ss[mid]
--- 		print("right")
--- 		return ss_index_r(ss, value, mid + 1, fin)
--- 	end
--- end
-
+-- Returns the first index at which value could be inserted and have the list
+-- remain sorted.  Iff the list contains value, then its first occurrence is at
+-- the returned index.
 function ss_index(ss, value)
-	-- TODO: implement as binary search
-	-- return ss_index_r(ss, value, 1, #ss)
-	for i = 1, #ss do
-		if ss[i] >= value then return i end
+	-- Binary search
+	start = 1
+	fin = #ss
+	while start <= fin do
+		local mid = math.floor((start + fin) / 2)
+		if value <= ss[mid] then
+			fin = mid - 1
+		else -- value > ss[mid]
+			start = mid + 1
+		end
 	end
-	return #ss + 1
+	return start
 end
 
 function ss_add(ss, value)
